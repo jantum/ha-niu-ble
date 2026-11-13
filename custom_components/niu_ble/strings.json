@@ -1,0 +1,61 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Set up NIU KQi",
+        "description": "After `kqi_ble.py setup` both keys are in `secrets/scooter.json` under `ble`: `password` and `aes`.",
+        "data": {
+          "address": "Bluetooth MAC of the scooter",
+          "ble_password": "BLE password (16 characters)",
+          "ble_aes": "AES key (16 characters or 32 hex characters)",
+          "phone_tracker": "Phone tracker for the location while away"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Invalid MAC address (format AA:BB:CC:DD:EE:FF).",
+      "invalid_password": "The BLE password must be exactly 16 characters.",
+      "invalid_aes": "The AES key must be 16 characters or 32 hex characters.",
+      "invalid_auth": "The scooter rejected the BLE password.",
+      "invalid_aes_key": "Login ok, but the data is unreadable. Check the AES key.",
+      "cannot_connect": "Could not connect to the scooter. Close the NIU app, wake the scooter and retry."
+    },
+    "abort": {
+      "already_configured": "This scooter is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NIU KQi options",
+        "data": {
+          "phone_tracker": "Phone tracker for the location while away",
+          "scan_interval": "Polling interval"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "Battery" },
+      "estimated_range": { "name": "Estimated range" },
+      "ride_mode": { "name": "Ride mode" },
+      "max_speed": { "name": "Top speed" },
+      "fault_code": { "name": "Fault code" },
+      "battery_capacity": { "name": "Battery capacity" },
+      "charge_count": { "name": "Charge counter" },
+      "firmware_display": { "name": "Firmware display" },
+      "firmware_controller": { "name": "Firmware controller" },
+      "firmware_bms": { "name": "Firmware BMS" },
+      "firmware_bluetooth": { "name": "Firmware Bluetooth" },
+      "last_update": { "name": "Last update" }
+    },
+    "binary_sensor": {
+      "in_range": { "name": "In range" },
+      "charger_connected": { "name": "Charger" },
+      "charging": { "name": "Charging" },
+      "rides_unsynced": { "name": "Rides not synced" }
+    }
+  }
+}
