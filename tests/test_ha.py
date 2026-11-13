@@ -54,10 +54,13 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
         "device_tracker.phone", "not_home",
         {"latitude": 48.1, "longitude": 11.5, "gps_accuracy": 12, "source_type": "gps"},
     )
+    hass.states.async_set("sensor.odo", "384.33")
+    hass.states.async_set("sensor.outdoor", "4.0")
     entry = MockConfigEntry(
         domain=DOMAIN, title="NIU KQi", unique_id=ADDR,
         data={CONF_ADDRESS: ADDR, "ble_password": "A" * 16, "ble_aes": "B" * 16},
-        options={"scan_interval": 5, "phone_tracker": "device_tracker.phone"},
+        options={"scan_interval": 5, "phone_tracker": "device_tracker.phone",
+                 "odometer_entity": "sensor.odo", "temperature_entity": "sensor.outdoor"},
     )
     entry.add_to_hass(hass)
 
@@ -80,7 +83,7 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
 
     reg = er.async_get(hass)
     ids = {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(reg, entry.entry_id)}
-    assert len(ids) == 17, ids
+    assert len(ids) == 21, ids
 
     def state(key):
         return hass.states.get(ids[f"{ADDR}_{key}"])
@@ -130,6 +133,31 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
     assert state("battery").state == "40"
     assert state("charger_connected").state == "off"
 
+    # Fahrtenbuch: 63 -> 40 % während der Abwesenheit
+    assert state("logbook").state == "1"
+    trip = state("logbook").attributes["fahrten"][0]
+    assert (trip["soc_start"], trip["soc_ende"], trip["verbrauch"], trip["temperatur"]) == (63, 40, 23, 4.0)
+    assert state("logbook").attributes["unterwegs"] is False
+    assert state("last_trip_consumption").state == "23"
+    assert state("consumption_pct_per_km").state == "unknown"
+    assert state("consumption_pct_per_km").attributes["wartet_auf_sync"] is True
+
+    # Cloud-km steigen, Roller meldet aber noch unsynchronisierte Fahrten -> warten
+    hass.states.async_set("sensor.odo", "390.0")
+    await hass.async_block_till_done()
+    assert state("consumption_pct_per_km").state == "unknown"
+    # nach dem App-Sync: Bit gelöscht, Zähler final -> Abschnitt 23 % / 10 km
+    hass.states.async_set("sensor.odo", "394.33")
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=object()), \
+         patch("custom_components.niu_ble.coordinator.async_read_scooter",
+               return_value={"bms_soc_rt": 40, "foc_k_realtime_status1": 129}):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+    assert float(state("consumption_pct_per_km").state) == 2.3
+    assert float(state("consumption_wh_per_km").state) == round(0.23 * 9822 * 48 / 1000 / 10, 1)
+    attrs = state("consumption_pct_per_km").attributes
+    assert attrs["km"] == 10.0 and attrs["temperatur"] == 4.0 and attrs["wartet_auf_sync"] is False
+
     # Lesefehler: alte Werte bleiben
     from bleak.exc import BleakError
     with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=object()), \
@@ -143,6 +171,7 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
         await hass.async_block_till_done(wait_background_tasks=True)
     assert state("battery").state == "40"
     assert state("in_range").state == "off"
+    assert state("logbook").state == "1" and float(state("consumption_pct_per_km").state) == 2.3
 
     # Optionen ändern
     res = await hass.config_entries.options.async_init(entry.entry_id)

@@ -24,10 +24,27 @@ BLE-Version 20/21 werden nicht unterstützt.
 | Fahrten nicht synchronisiert | Hinweis, die NIU-App zu öffnen |
 | Standort (`device_tracker`) | in Reichweite = zuhause, sonst Position eines Handy-Trackers |
 
+| Fahrtenbuch | Anzahl Fahrten; Liste im Attribut `fahrten` |
+| Verbrauch letzte Fahrt (%) | |
+| Verbrauch pro km (%/km) / Energieverbrauch pro km (Wh/km) | je abgeschlossenem Abschnitt, siehe unten |
+
 Standardmäßig deaktiviert: Ladezähler, Firmware-Stände.
 
 Ist der Roller unterwegs, bleiben die zuletzt gelesenen Werte stehen (auch über einen
 HA-Neustart hinweg).
+
+## Fahrtenbuch und Verbrauch
+
+- **Fahrt:** eine Abwesenheit aus der Bluetooth-Reichweite, bei der der Akku gesunken ist.
+  Gespeichert werden Start, Ende, Dauer, Akku vorher/nachher, Verbrauch und (optional)
+  die Außentemperatur. Die letzten 30 Fahrten bleiben erhalten.
+- **Verbrauch pro km:** Der Roller liefert per Bluetooth keinen Kilometerstand. Wird in den
+  Optionen ein Kilometerzähler angegeben (z. B. „Gesamt-km“ der NIU-Cloud-Integration),
+  teilt die Integration den seit dem letzten Zählerstand verbrauchten Akku durch die
+  gefahrenen km. Abgerechnet wird erst, wenn der Roller zuhause ist und keine
+  unsynchronisierten Fahrten mehr meldet, also nach dem Öffnen der NIU-App.
+- Wh/km ist eine Näherung aus gemeldeter Kapazität (mAh) × 48 V.
+- Laden unterwegs wird nicht erkannt.
 
 ## Installation (HACS)
 
@@ -52,7 +69,8 @@ Einstellungen → Geräte & Dienste → Integration hinzufügen → „NIU KQi (
 Ist der Roller in Reichweite, werden die Schlüssel beim Einrichten direkt geprüft.
 Die NIU-App sollte dabei geschlossen sein.
 
-Optionen: Handy-Tracker für den Standort unterwegs, Abrufintervall (Standard 5 min).
+Optionen: Handy-Tracker für den Standort unterwegs, Kilometerzähler, Außentemperatur,
+Abrufintervall (Standard 5 min).
 
 ## Grenzen
 

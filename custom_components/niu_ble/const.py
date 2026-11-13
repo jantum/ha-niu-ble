@@ -8,6 +8,8 @@ CONF_BLE_PASSWORD = "ble_password"
 CONF_BLE_AES = "ble_aes"
 CONF_TRACKER = "phone_tracker"
 CONF_INTERVAL = "scan_interval"
+CONF_ODOMETER = "odometer_entity"
+CONF_TEMPERATURE = "temperature_entity"
 
 DEFAULT_INTERVAL_MIN = 5
 MIN_INTERVAL_MIN = 1
@@ -25,6 +27,9 @@ BIT_CHARGING = 0x0002
 
 # foc_k_realtime_status1
 BIT_RIDES_UNSYNCED = 0x0800
+
+# Nennspannung des Akkus (V); dient nur zur Umrechnung mAh -> Wh (Näherung).
+RATED_VOLTAGE = 48
 
 RESPONSE_TIMEOUT = 4.0
 POLL_TIMEOUT = 45.0

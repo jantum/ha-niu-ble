@@ -31,6 +31,8 @@
         "title": "NIU KQi options",
         "data": {
           "phone_tracker": "Phone tracker for the location while away",
+          "odometer_entity": "Odometer (e.g. total mileage from the NIU cloud)",
+          "temperature_entity": "Outdoor temperature",
           "scan_interval": "Polling interval"
         }
       }
@@ -38,24 +40,68 @@
   },
   "entity": {
     "sensor": {
-      "battery": { "name": "Battery" },
-      "estimated_range": { "name": "Estimated range" },
-      "ride_mode": { "name": "Ride mode" },
-      "max_speed": { "name": "Top speed" },
-      "fault_code": { "name": "Fault code" },
-      "battery_capacity": { "name": "Battery capacity" },
-      "charge_count": { "name": "Charge counter" },
-      "firmware_display": { "name": "Firmware display" },
-      "firmware_controller": { "name": "Firmware controller" },
-      "firmware_bms": { "name": "Firmware BMS" },
-      "firmware_bluetooth": { "name": "Firmware Bluetooth" },
-      "last_update": { "name": "Last update" }
+      "battery": {
+        "name": "Battery"
+      },
+      "estimated_range": {
+        "name": "Estimated range"
+      },
+      "ride_mode": {
+        "name": "Ride mode"
+      },
+      "max_speed": {
+        "name": "Top speed"
+      },
+      "fault_code": {
+        "name": "Fault code"
+      },
+      "battery_capacity": {
+        "name": "Battery capacity"
+      },
+      "charge_count": {
+        "name": "Charge counter"
+      },
+      "firmware_display": {
+        "name": "Firmware display"
+      },
+      "firmware_controller": {
+        "name": "Firmware controller"
+      },
+      "firmware_bms": {
+        "name": "Firmware BMS"
+      },
+      "firmware_bluetooth": {
+        "name": "Firmware Bluetooth"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "logbook": {
+        "name": "Logbook"
+      },
+      "consumption_pct_per_km": {
+        "name": "Consumption per km"
+      },
+      "consumption_wh_per_km": {
+        "name": "Energy consumption per km"
+      },
+      "last_trip_consumption": {
+        "name": "Last trip consumption"
+      }
     },
     "binary_sensor": {
-      "in_range": { "name": "In range" },
-      "charger_connected": { "name": "Charger" },
-      "charging": { "name": "Charging" },
-      "rides_unsynced": { "name": "Rides not synced" }
+      "in_range": {
+        "name": "In range"
+      },
+      "charger_connected": {
+        "name": "Charger"
+      },
+      "charging": {
+        "name": "Charging"
+      },
+      "rides_unsynced": {
+        "name": "Rides not synced"
+      }
     }
   }
 }

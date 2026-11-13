@@ -22,6 +22,8 @@ from .const import (
     CONF_BLE_AES,
     CONF_BLE_PASSWORD,
     CONF_INTERVAL,
+    CONF_ODOMETER,
+    CONF_TEMPERATURE,
     CONF_TRACKER,
     DEFAULT_INTERVAL_MIN,
     DOMAIN,
@@ -37,6 +39,10 @@ MAC_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 TRACKER_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="device_tracker")
+)
+ODOMETER_SELECTOR = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+TEMPERATURE_SELECTOR = selector.EntitySelector(
+    selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
 )
 INTERVAL_SELECTOR = selector.NumberSelector(
     selector.NumberSelectorConfig(
@@ -146,7 +152,7 @@ class NiuBleConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NiuBleOptionsFlow(OptionsFlow):
-    """Handy-Tracker und Abrufintervall ändern."""
+    """Handy-Tracker, Kilometerzähler, Außentemperatur und Abrufintervall ändern."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Optionen bearbeiten."""
@@ -154,13 +160,16 @@ class NiuBleOptionsFlow(OptionsFlow):
             options: dict[str, Any] = {
                 CONF_INTERVAL: int(user_input.get(CONF_INTERVAL, DEFAULT_INTERVAL_MIN))
             }
-            if tracker := user_input.get(CONF_TRACKER):
-                options[CONF_TRACKER] = tracker
+            for key in (CONF_TRACKER, CONF_ODOMETER, CONF_TEMPERATURE):
+                if value := user_input.get(key):
+                    options[key] = value
             return self.async_create_entry(data=options)
 
         schema = vol.Schema(
             {
                 vol.Optional(CONF_TRACKER): TRACKER_SELECTOR,
+                vol.Optional(CONF_ODOMETER): ODOMETER_SELECTOR,
+                vol.Optional(CONF_TEMPERATURE): TEMPERATURE_SELECTOR,
                 vol.Required(CONF_INTERVAL, default=DEFAULT_INTERVAL_MIN): INTERVAL_SELECTOR,
             }
         )
