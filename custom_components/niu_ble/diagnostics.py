@@ -12,7 +12,9 @@ from .coordinator import NiuConfigEntry
 
 TO_REDACT = {CONF_BLE_PASSWORD, CONF_BLE_AES, CONF_NIU_ACCOUNT, CONF_NIU_PW_HASH}
 # Ortsbezogene Felder im Cloud-Datensatz unkenntlich machen (Name bleibt sichtbar).
-LOCATION_HINTS = ("lat", "lng", "lon", "point", "addr", "location", "gps", "coord", "track_items")
+LOCATION_HINTS = (
+    "lat", "lng", "lon", "point", "addr", "location", "gps", "coord", "track_items", "thumb",
+)
 
 
 def _redact_location(value: Any) -> Any:

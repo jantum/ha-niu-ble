@@ -222,10 +222,11 @@ async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
 
     # Diagnose: Roh-Datensatz mit Feldnamen, Orte und Zugangsdaten unkenntlich
     from custom_components.niu_ble.diagnostics import async_get_config_entry_diagnostics
-    coordinator._cloud.last_raw = {**coordinator._cloud.last_raw, "startPoint": {"lat": 52.5}, "riding_mode": 2}
+    coordinator._cloud.last_raw = {**coordinator._cloud.last_raw, "startPoint": {"lat": 52.5}, "track_thumb": "https://x/map.png", "riding_mode": 2}
     diag = await async_get_config_entry_diagnostics(hass, entry)
     assert "riding_mode" in diag["cloud_raw_ride_keys"] and diag["cloud_raw_ride"]["riding_mode"] == 2
     assert diag["cloud_raw_ride"]["startPoint"] == "**REDACTED**"
+    assert diag["cloud_raw_ride"]["track_thumb"] == "**REDACTED**"
     assert diag["entry"]["data"]["niu_password_hash"] == "**REDACTED**"
     assert diag["entry"]["data"]["ble_password"] == "**REDACTED**"
 
