@@ -49,6 +49,7 @@ def test_filters():
     assert short["km"] == 0.1 and short["prozent_pro_km"] is None
     no_cons = R.normalize({**raw(), "power_consumption": None}, CAP)
     assert no_cons["verbrauch"] is None and no_cons["prozent_pro_km"] is None
+    assert R.normalize(raw(speed=0.0), CAP)["tempo"] is None
 
 
 def test_aggregates():

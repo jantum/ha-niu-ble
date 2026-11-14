@@ -45,7 +45,8 @@ def normalize(raw: dict[str, Any], capacity_wh: float | None) -> dict[str, Any] 
         "ende": end.isoformat(),
         "km": km,
         "dauer_min": round(seconds / 60, 1),
-        "tempo": round(float(speed), 1) if isinstance(speed, (int, float)) else None,
+        # Frische Datensätze haben oft noch 0 km/h, bis die Cloud nachgerechnet hat.
+        "tempo": round(float(speed), 1) if isinstance(speed, (int, float)) and speed > 0 else None,
         "verbrauch": used,
         "prozent_pro_km": rate,
         "wh_pro_km": round(rate / 100 * capacity_wh, 1) if rate is not None and capacity_wh else None,
