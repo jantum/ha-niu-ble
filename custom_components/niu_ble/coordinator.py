@@ -109,6 +109,11 @@ class NiuCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # ------------------------------------------------------------------ Setup
 
     @property
+    def cloud_raw_sample(self) -> dict[str, Any] | None:
+        """Neuester Roh-Datensatz aus der NIU-Cloud (Diagnose)."""
+        return self._cloud.last_raw if self._cloud else None
+
+    @property
     def cloud_enabled(self) -> bool:
         """Sind NIU-Zugangsdaten hinterlegt?"""
         return self._cloud is not None

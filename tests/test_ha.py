@@ -220,6 +220,15 @@ async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
     assert float(state("ridden_distance").state) == 5.1
     assert state("cloud_sync").state not in ("unknown", "unavailable")
 
+    # Diagnose: Roh-Datensatz mit Feldnamen, Orte und Zugangsdaten unkenntlich
+    from custom_components.niu_ble.diagnostics import async_get_config_entry_diagnostics
+    coordinator._cloud.last_raw = {**coordinator._cloud.last_raw, "startPoint": {"lat": 52.5}, "riding_mode": 2}
+    diag = await async_get_config_entry_diagnostics(hass, entry)
+    assert "riding_mode" in diag["cloud_raw_ride_keys"] and diag["cloud_raw_ride"]["riding_mode"] == 2
+    assert diag["cloud_raw_ride"]["startPoint"] == "**REDACTED**"
+    assert diag["entry"]["data"]["niu_password_hash"] == "**REDACTED**"
+    assert diag["entry"]["data"]["ble_password"] == "**REDACTED**"
+
     # zweiter Abruf: nichts Neues, nichts doppelt
     assert await coordinator.async_sync_rides() == 0
     assert state("logbook").state == "2"

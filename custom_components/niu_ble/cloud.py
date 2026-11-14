@@ -48,6 +48,8 @@ class NiuCloud:
         self._pw_hash = pw_hash
         self._token: str | None = None
         self._expires_at = 0.0
+        # Neuester Roh-Datensatz der Fahrtenliste, nur für die Diagnose.
+        self.last_raw: dict[str, Any] | None = None
 
     async def _request(
         self,
@@ -146,6 +148,8 @@ class NiuCloud:
         seen = set(known)
         for page in range(1, MAX_PAGES + 1):
             batch = await self.rides_page(serial, page)
+            if page == 1 and batch:
+                self.last_raw = batch[0]
             new = [r for r in batch if str(r.get("trackId")) not in seen]
             if not new:
                 break
