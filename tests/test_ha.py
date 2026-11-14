@@ -83,6 +83,8 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
     reg = er.async_get(hass)
     ids = {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(reg, entry.entry_id)}
     assert len(ids) == 26, ids
+    names = {e.unique_id.split("_", 1)[1]: hass.states.get(e.entity_id).name for e in er.async_entries_for_config_entry(reg, entry.entry_id) if hass.states.get(e.entity_id)}
+    assert names["consumption_7d"] != "NIU KQi" and names["logbook"] != "NIU KQi", names
 
     def state(key):
         return hass.states.get(ids[f"{ADDR}_{key}"])

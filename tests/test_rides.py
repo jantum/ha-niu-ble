@@ -66,3 +66,15 @@ def test_aggregates():
     assert R.average_rate(lst, now) == 2.9
     assert R.average_rate([], now) is None
     assert R.total_km(lst) == 23.6
+
+
+def test_translations_have_names():
+    """Jede Entitäts-Übersetzung braucht die Form {"name": ...}."""
+    import json
+
+    base = pathlib.Path(__file__).resolve().parents[1] / "custom_components/niu_ble"
+    for f in ("strings.json", "translations/de.json", "translations/en.json"):
+        data = json.loads((base / f).read_text("utf-8"))
+        for platform, keys in data["entity"].items():
+            for key, value in keys.items():
+                assert isinstance(value, dict) and value.get("name"), (f, platform, key)

@@ -82,15 +82,33 @@
       "last_update": {
         "name": "Last update"
       },
-      "logbook": "Logbook",
-      "consumption_pct_per_km": "Consumption per km",
-      "consumption_wh_per_km": "Energy consumption per km",
-      "last_trip_consumption": "Last trip consumption",
-      "consumption_7d": "Consumption 7 days",
-      "consumption_30d": "Consumption 30 days",
-      "consumption_total": "Consumption overall",
-      "ridden_distance": "Ridden distance",
-      "cloud_sync": "Last cloud sync"
+      "logbook": {
+        "name": "Logbook"
+      },
+      "consumption_pct_per_km": {
+        "name": "Consumption per km"
+      },
+      "consumption_wh_per_km": {
+        "name": "Energy consumption per km"
+      },
+      "last_trip_consumption": {
+        "name": "Last trip consumption"
+      },
+      "consumption_7d": {
+        "name": "Consumption 7 days"
+      },
+      "consumption_30d": {
+        "name": "Consumption 30 days"
+      },
+      "consumption_total": {
+        "name": "Consumption overall"
+      },
+      "ridden_distance": {
+        "name": "Ridden distance"
+      },
+      "cloud_sync": {
+        "name": "Last cloud sync"
+      }
     },
     "binary_sensor": {
       "in_range": {
