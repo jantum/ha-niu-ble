@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import rides as R
-from .const import FAULTS
+from .const import FAULTS, RIDE_MODES
 from .coordinator import NiuConfigEntry, NiuCoordinator
 from .entity import NiuEntity
 
@@ -34,6 +34,13 @@ def _scaled(key: str, divisor: float) -> Callable[[dict[str, Any]], float | None
         return None if raw is None else raw / divisor
 
     return value
+
+
+def _ride_mode(data: dict[str, Any]) -> str | None:
+    raw = data.get("foc_k_gears")
+    if raw is None:
+        return None
+    return RIDE_MODES.get(raw, "other")
 
 
 def _range_km(data: dict[str, Any]) -> float | None:
@@ -67,7 +74,9 @@ SENSORS: tuple[NiuSensorDescription, ...] = (
     ),
     NiuSensorDescription(
         key="ride_mode",
-        value_fn=_raw("foc_k_gears"),
+        device_class=SensorDeviceClass.ENUM,
+        options=[*RIDE_MODES.values(), "other"],
+        value_fn=_ride_mode,
     ),
     NiuSensorDescription(
         key="max_speed",
@@ -153,7 +162,9 @@ class NiuSensor(NiuEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Klartext zum Fehlercode."""
+        """Klartext zum Fehlercode bzw. Rohwert des Fahrmodus."""
+        if self.entity_description.key == "ride_mode":
+            return {"rohwert": self.coordinator.data.get("foc_k_gears")}
         if self.entity_description.key != "fault_code":
             return None
         code = self.coordinator.data.get("db_k_f_code")

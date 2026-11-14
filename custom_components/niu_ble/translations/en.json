@@ -53,7 +53,12 @@
         "name": "Estimated range"
       },
       "ride_mode": {
-        "name": "Ride mode"
+        "name": "Ride mode",
+        "state": {
+          "e_save": "E-Save",
+          "sport": "Sport",
+          "other": "Other mode"
+        }
       },
       "max_speed": {
         "name": "Top speed"

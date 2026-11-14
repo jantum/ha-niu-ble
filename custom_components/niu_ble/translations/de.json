@@ -53,7 +53,12 @@
         "name": "Reichweite"
       },
       "ride_mode": {
-        "name": "Fahrmodus"
+        "name": "Fahrmodus",
+        "state": {
+          "e_save": "E-Save",
+          "sport": "Sport",
+          "other": "Anderer Modus"
+        }
       },
       "max_speed": {
         "name": "Höchstgeschwindigkeit"

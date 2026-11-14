@@ -36,6 +36,10 @@ RATED_VOLTAGE = 48
 RESPONSE_TIMEOUT = 4.0
 POLL_TIMEOUT = 45.0
 
+# foc_k_gears, am KQi 300P beobachtet (14.11.2026): Power-Taste wechselt zwischen 1 und 2,
+# beim Einschalten zeigt das Display „E-Save“ bei 1. Weitere Modi (Custom, Fußgänger) unbestätigt.
+RIDE_MODES: dict[int, str] = {1: "e_save", 2: "sport"}
+
 # Fehlercodes laut Störungstabelle im NIU-KQi-Handbuch.
 FAULTS: dict[int, str] = {
     0: "Kein Fehler",

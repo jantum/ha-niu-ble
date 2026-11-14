@@ -79,3 +79,5 @@ def test_translations_have_names():
         for platform, keys in data["entity"].items():
             for key, value in keys.items():
                 assert isinstance(value, dict) and value.get("name"), (f, platform, key)
+                for state_name in value.get("state", {}).values():
+                    assert isinstance(state_name, str) and state_name

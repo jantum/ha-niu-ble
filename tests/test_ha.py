@@ -91,7 +91,7 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
 
     assert state("battery").state == "63"
     assert state("estimated_range").state == "unknown"  # 0 = Platzhalter
-    assert state("ride_mode").state == "2"
+    assert state("ride_mode").state == "sport" and state("ride_mode").attributes["rohwert"] == 2
     assert float(state("max_speed").state) == 20.0
     assert state("fault_code").state == "0"
     assert state("fault_code").attributes["description"] == "Kein Fehler"
