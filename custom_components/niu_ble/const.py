@@ -8,7 +8,9 @@ CONF_BLE_PASSWORD = "ble_password"
 CONF_BLE_AES = "ble_aes"
 CONF_TRACKER = "phone_tracker"
 CONF_INTERVAL = "scan_interval"
-CONF_ODOMETER = "odometer_entity"
+CONF_NIU_ACCOUNT = "niu_account"
+CONF_NIU_PASSWORD = "niu_password"
+CONF_NIU_PW_HASH = "niu_password_hash"
 CONF_TEMPERATURE = "temperature_entity"
 
 DEFAULT_INTERVAL_MIN = 5

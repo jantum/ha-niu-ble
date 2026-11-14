@@ -16,7 +16,9 @@ from homeassistant.components.sensor import (
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfLength, UnitOfSpeed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
+from . import rides as R
 from .const import FAULTS
 from .coordinator import NiuConfigEntry, NiuCoordinator
 from .entity import NiuEntity
@@ -130,8 +132,8 @@ async def async_setup_entry(
     entities.append(NiuLastUpdateSensor(coordinator))
     entities.append(NiuLogbookSensor(coordinator))
     entities.append(NiuLastTripSensor(coordinator))
-    entities.append(NiuConsumptionSensor(coordinator, "consumption_pct_per_km", "prozent_pro_km", "%/km"))
-    entities.append(NiuConsumptionSensor(coordinator, "consumption_wh_per_km", "wh_pro_km", "Wh/km"))
+    entities.extend(NiuRideSensor(coordinator, desc) for desc in RIDE_SENSORS)
+    entities.append(NiuCloudSyncSensor(coordinator))
     async_add_entities(entities)
 
 
@@ -175,8 +177,99 @@ class NiuLastUpdateSensor(NiuEntity, SensorEntity):
         return self.coordinator.last_success
 
 
+ATTR_RIDES = 50
+
+
+def _last(field: str) -> Callable[[NiuCoordinator], Any]:
+    def value(coordinator: NiuCoordinator) -> Any:
+        rides = coordinator.ride_list
+        return rides[0].get(field) if rides else None
+
+    return value
+
+
+def _average(days: int | None) -> Callable[[NiuCoordinator], float | None]:
+    return lambda coordinator: R.average_rate(coordinator.ride_list, dt_util.utcnow(), days)
+
+
+@dataclass(frozen=True, kw_only=True)
+class NiuRideSensorDescription(SensorEntityDescription):
+    """Beschreibung eines aus den Cloud-Fahrten abgeleiteten Sensors."""
+
+    value_fn: Callable[[NiuCoordinator], Any]
+
+
+RIDE_SENSORS: tuple[NiuRideSensorDescription, ...] = (
+    NiuRideSensorDescription(
+        key="consumption_pct_per_km",
+        icon="mdi:battery-arrow-down",
+        native_unit_of_measurement="%/km",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=_last("prozent_pro_km"),
+    ),
+    NiuRideSensorDescription(
+        key="consumption_wh_per_km",
+        icon="mdi:lightning-bolt",
+        native_unit_of_measurement="Wh/km",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=_last("wh_pro_km"),
+    ),
+    NiuRideSensorDescription(
+        key="consumption_7d",
+        icon="mdi:chart-line",
+        native_unit_of_measurement="%/km",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=_average(7),
+    ),
+    NiuRideSensorDescription(
+        key="consumption_30d",
+        icon="mdi:chart-line",
+        native_unit_of_measurement="%/km",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=_average(30),
+    ),
+    NiuRideSensorDescription(
+        key="consumption_total",
+        icon="mdi:chart-line",
+        native_unit_of_measurement="%/km",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=_average(None),
+    ),
+    NiuRideSensorDescription(
+        key="ridden_distance",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=1,
+        value_fn=lambda coordinator: R.total_km(coordinator.ride_list)
+        if coordinator.ride_list
+        else None,
+    ),
+)
+
+
+class NiuRideSensor(NiuEntity, SensorEntity):
+    """Kennzahl aus den Cloud-Fahrten."""
+
+    entity_description: NiuRideSensorDescription
+
+    def __init__(self, coordinator: NiuCoordinator, description: NiuRideSensorDescription) -> None:
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> Any:
+        """Aktueller Wert."""
+        return self.entity_description.value_fn(self.coordinator)
+
+
 class NiuLogbookSensor(NiuEntity, SensorEntity):
-    """Fahrtenbuch: Anzahl gespeicherter Fahrten, Liste im Attribut `fahrten`."""
+    """Fahrtenbuch: Anzahl der Fahrten, die neuesten im Attribut `fahrten`."""
 
     _attr_icon = "mdi:book-open-variant"
     _unrecorded_attributes = frozenset({"fahrten"})
@@ -185,15 +278,16 @@ class NiuLogbookSensor(NiuEntity, SensorEntity):
         super().__init__(coordinator, "logbook")
 
     @property
-    def native_value(self) -> int:
-        """Anzahl gespeicherter Fahrten."""
-        return len(self.coordinator.log.trips)
+    def native_value(self) -> int | None:
+        """Anzahl bekannter Fahrten."""
+        if not self.coordinator.cloud_enabled and not self.coordinator.ride_list:
+            return None
+        return len(self.coordinator.ride_list)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Fahrtenliste, neueste zuerst."""
-        log = self.coordinator.log
-        return {"unterwegs": log.open_trip is not None, "fahrten": log.trips}
+        """Neueste Fahrten zuerst."""
+        return {"fahrten": self.coordinator.ride_list[:ATTR_RIDES]}
 
 
 class NiuLastTripSensor(NiuEntity, SensorEntity):
@@ -209,40 +303,31 @@ class NiuLastTripSensor(NiuEntity, SensorEntity):
     @property
     def native_value(self) -> int | None:
         """Verbrauch der letzten Fahrt."""
-        trips = self.coordinator.log.trips
-        return trips[0]["verbrauch"] if trips else None
+        rides = self.coordinator.ride_list
+        return rides[0].get("verbrauch") if rides else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Details der letzten Fahrt."""
-        trips = self.coordinator.log.trips
-        return dict(trips[0]) if trips else None
+        rides = self.coordinator.ride_list
+        return {k: v for k, v in rides[0].items() if k != "id"} if rides else None
 
 
-class NiuConsumptionSensor(NiuEntity, SensorEntity):
-    """Verbrauch pro km des zuletzt abgeschlossenen Abschnitts."""
+class NiuCloudSyncSensor(NiuEntity, SensorEntity):
+    """Zeitpunkt des letzten erfolgreichen Cloud-Abrufs."""
 
-    _attr_icon = "mdi:chart-bell-curve-cumulative"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _unrecorded_attributes = frozenset({"abschnitte"})
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator: NiuCoordinator, key: str, field: str, unit: str) -> None:
-        super().__init__(coordinator, key)
-        self._field = field
-        self._attr_native_unit_of_measurement = unit
+    def __init__(self, coordinator: NiuCoordinator) -> None:
+        super().__init__(coordinator, "cloud_sync")
 
     @property
-    def native_value(self) -> float | None:
-        """Letzter Abschnittswert."""
-        segments = self.coordinator.log.segments
-        return segments[0].get(self._field) if segments else None
+    def native_value(self) -> datetime | None:
+        """Letzter erfolgreicher Abruf der Fahrtenliste."""
+        return self.coordinator.cloud_last_sync
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Letzter Abschnitt, offener Verbrauch und Verlauf."""
-        log = self.coordinator.log
-        attrs: dict[str, Any] = dict(log.segments[0]) if log.segments else {}
-        attrs["offener_verbrauch"] = log.segment["used_pct"]
-        attrs["wartet_auf_sync"] = log.waiting_for_sync
-        attrs["abschnitte"] = log.segments
-        return attrs
+        """Letzte Fehlermeldung, falls der Abruf scheitert."""
+        return {"fehler": self.coordinator.cloud_error}

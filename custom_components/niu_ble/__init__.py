@@ -28,6 +28,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: NiuConfigEntry) -> bool:
     entry.async_create_background_task(
         hass, coordinator.async_refresh(), name="niu_ble first refresh"
     )
+    if coordinator.cloud_enabled:
+        entry.async_create_background_task(
+            hass, coordinator.async_sync_rides(), name="niu_ble cloud sync"
+        )
     return True
 
 

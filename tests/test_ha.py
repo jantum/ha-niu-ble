@@ -54,13 +54,12 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
         "device_tracker.phone", "not_home",
         {"latitude": 48.1, "longitude": 11.5, "gps_accuracy": 12, "source_type": "gps"},
     )
-    hass.states.async_set("sensor.odo", "384.33")
     hass.states.async_set("sensor.outdoor", "4.0")
     entry = MockConfigEntry(
         domain=DOMAIN, title="NIU KQi", unique_id=ADDR,
         data={CONF_ADDRESS: ADDR, "ble_password": "A" * 16, "ble_aes": "B" * 16},
         options={"scan_interval": 5, "phone_tracker": "device_tracker.phone",
-                 "odometer_entity": "sensor.odo", "temperature_entity": "sensor.outdoor"},
+                 "temperature_entity": "sensor.outdoor"},
     )
     entry.add_to_hass(hass)
 
@@ -83,7 +82,7 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
 
     reg = er.async_get(hass)
     ids = {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(reg, entry.entry_id)}
-    assert len(ids) == 21, ids
+    assert len(ids) == 26, ids
 
     def state(key):
         return hass.states.get(ids[f"{ADDR}_{key}"])
@@ -133,30 +132,8 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
     assert state("battery").state == "40"
     assert state("charger_connected").state == "off"
 
-    # Fahrtenbuch: 63 -> 40 % während der Abwesenheit
-    assert state("logbook").state == "1"
-    trip = state("logbook").attributes["fahrten"][0]
-    assert (trip["soc_start"], trip["soc_ende"], trip["verbrauch"], trip["temperatur"]) == (63, 40, 23, 4.0)
-    assert state("logbook").attributes["unterwegs"] is False
-    assert state("last_trip_consumption").state == "23"
-    assert state("consumption_pct_per_km").state == "unknown"
-    assert state("consumption_pct_per_km").attributes["wartet_auf_sync"] is True
-
-    # Cloud-km steigen, Roller meldet aber noch unsynchronisierte Fahrten -> warten
-    hass.states.async_set("sensor.odo", "390.0")
-    await hass.async_block_till_done()
-    assert state("consumption_pct_per_km").state == "unknown"
-    # nach dem App-Sync: Bit gelöscht, Zähler final -> Abschnitt 23 % / 10 km
-    hass.states.async_set("sensor.odo", "394.33")
-    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=object()), \
-         patch("custom_components.niu_ble.coordinator.async_read_scooter",
-               return_value={"bms_soc_rt": 40, "foc_k_realtime_status1": 129}):
-        await coordinator.async_refresh()
-        await hass.async_block_till_done()
-    assert float(state("consumption_pct_per_km").state) == 2.3
-    assert float(state("consumption_wh_per_km").state) == round(0.23 * 9822 * 48 / 1000 / 10, 1)
-    attrs = state("consumption_pct_per_km").attributes
-    assert attrs["km"] == 10.0 and attrs["temperatur"] == 4.0 and attrs["wartet_auf_sync"] is False
+    # ohne NIU-Konto bleibt das Fahrtenbuch leer
+    assert state("logbook").state == "unknown"
 
     # Lesefehler: alte Werte bleiben
     from bleak.exc import BleakError
@@ -171,7 +148,6 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
         await hass.async_block_till_done(wait_background_tasks=True)
     assert state("battery").state == "40"
     assert state("in_range").state == "off"
-    assert state("logbook").state == "1" and float(state("consumption_pct_per_km").state) == 2.3
 
     # Optionen ändern
     res = await hass.config_entries.options.async_init(entry.entry_id)
@@ -182,4 +158,98 @@ async def test_setup_states_tracker_and_restore(hass: HomeAssistant) -> None:
     assert entry.options == {"scan_interval": 10}
     assert entry.runtime_data.update_interval.total_seconds() == 600
 
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    await hass.config.async_set_time_zone("Europe/Berlin")
+    hass.states.async_set("sensor.outdoor", "4.5")
+    now = datetime.now(timezone.utc)
+    recent = int((now - timedelta(hours=2)).timestamp() * 1000)   # roh: 1 h vor der echten Zeit
+    old = int(datetime(2026, 11, 5, 9, 7, tzinfo=timezone.utc).timestamp() * 1000)
+
+    def ride(track, start, meters, used):
+        return {"trackId": track, "startTime": start, "endTime": start + 720000, "distance": meters,
+                "ridingtime": 710, "avespeed": 19.9, "power_consumption": used, "date": 0}
+
+    aioclient_mock.post("https://account-fk.niu.com/v3/api/oauth2/token",
+                        json={"status": 0, "data": {"token": {"access_token": "T", "token_expires_in": 86400}}})
+    aioclient_mock.get("https://app-api-fk.niu.com/v5/scooter/list",
+                       json={"status": 0, "data": {"items": [{"sn_id": "OTHER"}, {"sn_id": "SN1"}]}})
+    aioclient_mock.get("https://app-api-fk.niu.com/v5/ble/bleinfo?sn=OTHER",
+                       json={"status": 0, "data": {"bleMac": "11:22:33:44:55:66"}})
+    aioclient_mock.get("https://app-api-fk.niu.com/v5/ble/bleinfo?sn=SN1",
+                       json={"status": 0, "data": {"bleMac": "AABBCCDDEEFF"}})
+    aioclient_mock.post("https://app-api-fk.niu.com/v5/track/list/v3",
+                        json={"status": 0, "data": {"items": [
+                            ride("r2", recent, 3600, 22), ride("r1", old, 1500, 9), ride("chg", old, 0, -30)]}})
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="NIU KQi", unique_id=ADDR,
+        data={CONF_ADDRESS: ADDR, "ble_password": "A" * 16, "ble_aes": "B" * 16,
+              "niu_account": "me@example.com", "niu_password_hash": "0" * 32},
+        options={"scan_interval": 5, "temperature_entity": "sensor.outdoor"},
+    )
+    entry.add_to_hass(hass)
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=None):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    reg = er.async_get(hass)
+    ids = {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(reg, entry.entry_id)}
+
+    def state(key):
+        return hass.states.get(ids[f"{ADDR}_{key}"])
+
+    coordinator = entry.runtime_data
+    assert coordinator.cloud_error is None and coordinator._serial == "SN1"
+    assert state("logbook").state == "2"
+    rides = state("logbook").attributes["fahrten"]
+    assert [r["id"] for r in rides] == ["r2", "r1"]
+    assert rides[0]["km"] == 3.6 and rides[0]["verbrauch"] == 22 and rides[0]["prozent_pro_km"] == 6.11
+    assert rides[0]["temperatur"] == 4.5 and rides[1]["temperatur"] is None   # alt, keine Statistik
+    assert rides[0]["wh_pro_km"] is None                                       # Kapazität noch nie gelesen
+    assert state("last_trip_consumption").state == "22"
+    assert float(state("consumption_pct_per_km").state) == 6.11
+    assert float(state("consumption_7d").state) == 6.11
+    assert float(state("consumption_total").state) == round(31 / 5.1, 2)
+    assert float(state("ridden_distance").state) == 5.1
+    assert state("cloud_sync").state not in ("unknown", "unavailable")
+
+    # zweiter Abruf: nichts Neues, nichts doppelt
+    assert await coordinator.async_sync_rides() == 0
+    assert state("logbook").state == "2"
+
+    # Neustart: Fahrten kommen aus dem Speicher, auch wenn die Cloud ausfällt
+    import aiohttp
+    aioclient_mock.clear_requests()
+    aioclient_mock.post("https://account-fk.niu.com/v3/api/oauth2/token", exc=aiohttp.ClientError("offline"))
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=None):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert state("logbook").state == "2"
+    assert entry.runtime_data.cloud_error is not None
+
+    # Optionen: falsches Passwort wird abgelehnt, richtiges gespeichert (nur als Hash)
+    aioclient_mock.clear_requests()
+    aioclient_mock.post("https://account-fk.niu.com/v3/api/oauth2/token",
+                        json={"status": 1131, "desc": "Incorrect Login Details"})
+    res = await hass.config_entries.options.async_init(entry.entry_id)
+    res = await hass.config_entries.options.async_configure(
+        res["flow_id"], {"scan_interval": 5, "niu_account": "new@example.com", "niu_password": "falsch"})
+    assert res["type"] == "form" and res["errors"] == {"base": "cloud_auth"}
+    aioclient_mock.clear_requests()
+    aioclient_mock.post("https://account-fk.niu.com/v3/api/oauth2/token",
+                        json={"status": 0, "data": {"token": {"access_token": "T2", "token_expires_in": 86400}}})
+    aioclient_mock.post("https://app-api-fk.niu.com/v5/track/list/v3", json={"status": 0, "data": {"items": []}})
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=None):
+        res = await hass.config_entries.options.async_configure(
+            res["flow_id"], {"scan_interval": 5, "niu_account": "new@example.com", "niu_password": "geheim"})
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert res["type"] == "create_entry"
+    assert entry.data["niu_account"] == "new@example.com"
+    assert entry.data["niu_password_hash"] == "e8636ea013e682faf61f56ce1cb1ab5c"
+    assert "geheim" not in str(entry.data) and "niu_password" not in entry.options
     assert await hass.config_entries.async_unload(entry.entry_id)

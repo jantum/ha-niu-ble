@@ -16,13 +16,17 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import async_read_scooter
+from .cloud import CloudAuthError, CloudError, NiuCloud, password_hash
 from .const import (
     CONF_BLE_AES,
     CONF_BLE_PASSWORD,
     CONF_INTERVAL,
-    CONF_ODOMETER,
+    CONF_NIU_ACCOUNT,
+    CONF_NIU_PASSWORD,
+    CONF_NIU_PW_HASH,
     CONF_TEMPERATURE,
     CONF_TRACKER,
     DEFAULT_INTERVAL_MIN,
@@ -40,7 +44,9 @@ MAC_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 TRACKER_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="device_tracker")
 )
-ODOMETER_SELECTOR = selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor"))
+PASSWORD_SELECTOR = selector.TextSelector(
+    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+)
 TEMPERATURE_SELECTOR = selector.EntitySelector(
     selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
 )
@@ -152,28 +158,65 @@ class NiuBleConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NiuBleOptionsFlow(OptionsFlow):
-    """Handy-Tracker, Kilometerzähler, Außentemperatur und Abrufintervall ändern."""
+    """Handy-Tracker, Außentemperatur, Abrufintervall und NIU-Konto ändern."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Optionen bearbeiten."""
+        entry = self.config_entry
+        errors: dict[str, str] = {}
         if user_input is not None:
             options: dict[str, Any] = {
                 CONF_INTERVAL: int(user_input.get(CONF_INTERVAL, DEFAULT_INTERVAL_MIN))
             }
-            for key in (CONF_TRACKER, CONF_ODOMETER, CONF_TEMPERATURE):
+            for key in (CONF_TRACKER, CONF_TEMPERATURE):
                 if value := user_input.get(key):
                     options[key] = value
-            return self.async_create_entry(data=options)
+
+            data = {
+                k: v for k, v in entry.data.items() if k not in (CONF_NIU_ACCOUNT, CONF_NIU_PW_HASH)
+            }
+            account = (user_input.get(CONF_NIU_ACCOUNT) or "").strip()
+            password = user_input.get(CONF_NIU_PASSWORD) or ""
+            if account:
+                if password:
+                    pw_hash = password_hash(password)
+                elif account == entry.data.get(CONF_NIU_ACCOUNT):
+                    pw_hash = entry.data.get(CONF_NIU_PW_HASH, "")
+                else:
+                    pw_hash = ""
+                if not pw_hash:
+                    errors[CONF_NIU_PASSWORD] = "password_required"
+                elif password:
+                    cloud = NiuCloud(async_get_clientsession(self.hass), account, pw_hash)
+                    try:
+                        await cloud.login()
+                    except CloudAuthError:
+                        errors["base"] = "cloud_auth"
+                    except CloudError as err:
+                        _LOGGER.debug("NIU-Login fehlgeschlagen: %s", err)
+                        errors["base"] = "cloud_error"
+                data[CONF_NIU_ACCOUNT] = account
+                data[CONF_NIU_PW_HASH] = pw_hash
+
+            if not errors:
+                # Daten und Optionen in einem Schritt setzen, damit nur einmal neu geladen wird.
+                self.hass.config_entries.async_update_entry(entry, data=data, options=options)
+                return self.async_create_entry(data=options)
 
         schema = vol.Schema(
             {
                 vol.Optional(CONF_TRACKER): TRACKER_SELECTOR,
-                vol.Optional(CONF_ODOMETER): ODOMETER_SELECTOR,
                 vol.Optional(CONF_TEMPERATURE): TEMPERATURE_SELECTOR,
                 vol.Required(CONF_INTERVAL, default=DEFAULT_INTERVAL_MIN): INTERVAL_SELECTOR,
+                vol.Optional(CONF_NIU_ACCOUNT): str,
+                vol.Optional(CONF_NIU_PASSWORD): PASSWORD_SELECTOR,
             }
         )
+        suggested = {**entry.options, CONF_NIU_ACCOUNT: entry.data.get(CONF_NIU_ACCOUNT)}
+        if user_input is not None:
+            suggested.update({k: v for k, v in user_input.items() if k != CONF_NIU_PASSWORD})
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(schema, self.config_entry.options),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
         )

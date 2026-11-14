@@ -31,11 +31,17 @@
         "title": "NIU KQi Optionen",
         "data": {
           "phone_tracker": "Handy-Tracker für den Standort unterwegs",
-          "odometer_entity": "Kilometerzähler (z. B. Gesamt-km aus der NIU-Cloud)",
           "temperature_entity": "Außentemperatur",
-          "scan_interval": "Abrufintervall"
+          "scan_interval": "Abrufintervall",
+          "niu_account": "NIU-Konto (E-Mail) für das Fahrtenbuch",
+          "niu_password": "NIU-Passwort (leer lassen = unverändert)"
         }
       }
+    },
+    "error": {
+      "password_required": "Für dieses Konto wird das Passwort benötigt.",
+      "cloud_auth": "NIU hat die Zugangsdaten abgelehnt.",
+      "cloud_error": "NIU-Cloud nicht erreichbar oder Login fehlgeschlagen."
     }
   },
   "entity": {
@@ -76,18 +82,15 @@
       "last_update": {
         "name": "Letzter Abruf"
       },
-      "logbook": {
-        "name": "Fahrtenbuch"
-      },
-      "consumption_pct_per_km": {
-        "name": "Verbrauch pro km"
-      },
-      "consumption_wh_per_km": {
-        "name": "Energieverbrauch pro km"
-      },
-      "last_trip_consumption": {
-        "name": "Verbrauch letzte Fahrt"
-      }
+      "logbook": "Fahrtenbuch",
+      "consumption_pct_per_km": "Verbrauch pro km",
+      "consumption_wh_per_km": "Energieverbrauch pro km",
+      "last_trip_consumption": "Verbrauch letzte Fahrt",
+      "consumption_7d": "Verbrauch 7 Tage",
+      "consumption_30d": "Verbrauch 30 Tage",
+      "consumption_total": "Verbrauch gesamt",
+      "ridden_distance": "Gefahrene Strecke",
+      "cloud_sync": "Letzter Cloud-Abruf"
     },
     "binary_sensor": {
       "in_range": {

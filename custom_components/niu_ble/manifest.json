@@ -1,6 +1,9 @@
 {
   "domain": "niu_ble",
   "name": "NIU KQi (Bluetooth)",
+  "after_dependencies": [
+    "recorder"
+  ],
   "bluetooth": [
     {
       "service_uuid": "8ec94e30-f315-4f60-9fb8-838830daea50",
@@ -13,9 +16,9 @@
     "bluetooth_adapters"
   ],
   "documentation": "https://github.com/jantum/ha-niu-ble",
-  "issue_tracker": "https://github.com/jantum/ha-niu-ble/issues",
   "integration_type": "device",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/jantum/ha-niu-ble/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

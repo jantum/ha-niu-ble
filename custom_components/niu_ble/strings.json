@@ -31,11 +31,17 @@
         "title": "NIU KQi options",
         "data": {
           "phone_tracker": "Phone tracker for the location while away",
-          "odometer_entity": "Odometer (e.g. total mileage from the NIU cloud)",
           "temperature_entity": "Outdoor temperature",
-          "scan_interval": "Polling interval"
+          "scan_interval": "Polling interval",
+          "niu_account": "NIU account (email) for the logbook",
+          "niu_password": "NIU password (leave empty to keep)"
         }
       }
+    },
+    "error": {
+      "password_required": "A password is required for this account.",
+      "cloud_auth": "NIU rejected the credentials.",
+      "cloud_error": "NIU cloud unreachable or login failed."
     }
   },
   "entity": {
@@ -76,18 +82,15 @@
       "last_update": {
         "name": "Last update"
       },
-      "logbook": {
-        "name": "Logbook"
-      },
-      "consumption_pct_per_km": {
-        "name": "Consumption per km"
-      },
-      "consumption_wh_per_km": {
-        "name": "Energy consumption per km"
-      },
-      "last_trip_consumption": {
-        "name": "Last trip consumption"
-      }
+      "logbook": "Logbook",
+      "consumption_pct_per_km": "Consumption per km",
+      "consumption_wh_per_km": "Energy consumption per km",
+      "last_trip_consumption": "Last trip consumption",
+      "consumption_7d": "Consumption 7 days",
+      "consumption_30d": "Consumption 30 days",
+      "consumption_total": "Consumption overall",
+      "ridden_distance": "Ridden distance",
+      "cloud_sync": "Last cloud sync"
     },
     "binary_sensor": {
       "in_range": {
