@@ -50,6 +50,8 @@ from .protocol import NiuError
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
+# 2: Zeitstempel ohne Versatzkorrektur (0.3.1); ältere Fahrten werden neu importiert.
+RIDES_VERSION = 2
 CLOUD_INTERVAL = timedelta(hours=1)
 CLOUD_DELAY_AFTER_SYNC = 90
 RECENT_RIDE = timedelta(hours=3)
@@ -116,7 +118,8 @@ class NiuCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if stored := await self._store.async_load():
             self.data = stored.get("values", {})
             self._serial = stored.get("serial")
-            self._rides = stored.get("rides", {})
+            if stored.get("rides_version") == RIDES_VERSION:
+                self._rides = stored.get("rides", {})
             self._refresh_ride_list()
             if ts := stored.get("last_success"):
                 self.last_success = dt_util.parse_datetime(ts)
@@ -180,6 +183,7 @@ class NiuCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_success": self.last_success.isoformat() if self.last_success else None,
             "serial": self._serial,
             "rides": self._rides,
+            "rides_version": RIDES_VERSION,
             "cloud_last_sync": self.cloud_last_sync.isoformat() if self.cloud_last_sync else None,
         }
 
@@ -265,10 +269,9 @@ class NiuCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.async_update_listeners()
                 return 0
 
-            tz = dt_util.get_default_time_zone()
             added = 0
             for item in raw:
-                ride = R.normalize(item, tz, self.capacity_wh)
+                ride = R.normalize(item, self.capacity_wh)
                 # Auch verworfene Datensätze merken, damit sie nicht jedes Mal neu geladen werden.
                 self._rides[str(item.get("trackId"))] = ride or {"skip": True}
                 added += ride is not None

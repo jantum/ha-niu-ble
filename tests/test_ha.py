@@ -167,7 +167,7 @@ async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
     await hass.config.async_set_time_zone("Europe/Berlin")
     hass.states.async_set("sensor.outdoor", "4.5")
     now = datetime.now(timezone.utc)
-    recent = int((now - timedelta(hours=2)).timestamp() * 1000)   # roh: 1 h vor der echten Zeit
+    recent = int((now - timedelta(hours=1)).timestamp() * 1000)
     old = int(datetime(2026, 11, 5, 9, 7, tzinfo=timezone.utc).timestamp() * 1000)
 
     def ride(track, start, meters, used):
@@ -252,4 +252,25 @@ async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
     assert entry.data["niu_account"] == "new@example.com"
     assert entry.data["niu_password_hash"] == "e8636ea013e682faf61f56ce1cb1ab5c"
     assert "geheim" not in str(entry.data) and "niu_password" not in entry.options
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_old_rides_are_reimported(hass: HomeAssistant, hass_storage) -> None:
+    """Fahrten aus 0.3.0 (verschobene Zeiten) werden verworfen und neu geholt."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="NIU KQi", unique_id=ADDR,
+        data={CONF_ADDRESS: ADDR, "ble_password": "A" * 16, "ble_aes": "B" * 16},
+        options={"scan_interval": 5},
+    )
+    entry.add_to_hass(hass)
+    hass_storage[f"{DOMAIN}.{entry.entry_id}"] = {
+        "version": 1, "minor_version": 1, "key": f"{DOMAIN}.{entry.entry_id}",
+        "data": {"values": {"bms_soc_rt": 50}, "rides": {"x": {"id": "x", "start": "2026-11-05T11:07:32+00:00",
+                 "km": 1.0, "verbrauch": 5}}},
+    }
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=None):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    coordinator = entry.runtime_data
+    assert coordinator.ride_list == [] and coordinator.data["bms_soc_rt"] == 50
     assert await hass.config_entries.async_unload(entry.entry_id)

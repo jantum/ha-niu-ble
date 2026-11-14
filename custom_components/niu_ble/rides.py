@@ -2,33 +2,27 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, tzinfo
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # Unterhalb dieser Strecke ist ein Verbrauch pro km nicht aussagekräftig (Rundung auf ganze %).
 MIN_KM_FOR_RATE = 0.3
 
 
-def _corrected(ms: int, tz: tzinfo) -> datetime:
-    """Cloud-Zeitstempel korrigieren.
-
-    Die Cloud liefert die Zeitstempel um den UTC-Versatz der Zeitzone verschoben
-    (für Mitteleuropa also zu früh). Der Versatz wird daher aufaddiert; so macht es
-    auch die Referenz-App aus dem Projekt niu-kqi.
-    """
-    raw = datetime.fromtimestamp(ms / 1000, UTC)
-    return raw + (raw.astimezone(tz).utcoffset() or timedelta(0))
+def _timestamp(ms: int) -> datetime:
+    """Cloud-Zeitstempel (Millisekunden, UTC)."""
+    return datetime.fromtimestamp(ms / 1000, UTC)
 
 
-def normalize(raw: dict[str, Any], tz: tzinfo, capacity_wh: float | None) -> dict[str, Any] | None:
+def normalize(raw: dict[str, Any], capacity_wh: float | None) -> dict[str, Any] | None:
     """Einen Cloud-Datensatz in einen Fahrtenbuch-Eintrag wandeln.
 
     Liefert None für Datensätze, die keine Fahrt sind (Ladevorgänge, kaputte Einträge).
     """
     try:
         track_id = str(raw["trackId"])
-        start = _corrected(int(raw["startTime"]), tz)
-        end = _corrected(int(raw["endTime"]), tz)
+        start = _timestamp(int(raw["startTime"]))
+        end = _timestamp(int(raw["endTime"]))
         km = round(int(raw["distance"]) / 1000, 2)
         seconds = int(raw.get("ridingtime") or 0)
     except (KeyError, TypeError, ValueError):
