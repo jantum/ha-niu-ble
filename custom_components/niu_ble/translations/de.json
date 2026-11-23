@@ -115,6 +115,11 @@
         "name": "Letzter Cloud-Abruf"
       }
     },
+    "button": {
+      "sync_rides": {
+        "name": "Fahrten abrufen"
+      }
+    },
     "binary_sensor": {
       "in_range": {
         "name": "In Reichweite"
