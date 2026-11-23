@@ -234,6 +234,15 @@ async def test_cloud_rides(hass: HomeAssistant, aioclient_mock) -> None:
     assert await coordinator.async_sync_rides() == 0
     assert state("logbook").state == "2"
 
+    # Taster „Fahrten abrufen“: holt aus der Cloud, auch ohne Roller in Reichweite
+    button = state("sync_rides")
+    assert button is not None and button.state != "unavailable"
+    before = len(aioclient_mock.mock_calls)
+    with patch("custom_components.niu_ble.coordinator.bluetooth.async_ble_device_from_address", return_value=None):
+        await hass.services.async_call("button", "press", {"entity_id": button.entity_id}, blocking=True)
+    assert any("track/list" in str(c[1]) for c in aioclient_mock.mock_calls[before:])
+    assert state("logbook").state == "2"
+
     # Neustart: Fahrten kommen aus dem Speicher, auch wenn die Cloud ausfällt
     import aiohttp
     aioclient_mock.clear_requests()

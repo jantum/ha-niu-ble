@@ -115,6 +115,11 @@
         "name": "Last cloud sync"
       }
     },
+    "button": {
+      "sync_rides": {
+        "name": "Fetch rides"
+      }
+    },
     "binary_sensor": {
       "in_range": {
         "name": "In range"

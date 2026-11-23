@@ -10,6 +10,7 @@ from .coordinator import STORAGE_VERSION, NiuConfigEntry, NiuCoordinator, storag
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
     Platform.DEVICE_TRACKER,
     Platform.SENSOR,
 ]

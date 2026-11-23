@@ -22,6 +22,7 @@ BLE-Version 20/21 werden nicht unterstützt.
 | In Reichweite | aus den Bluetooth-Advertisements |
 | Ladegerät / Lädt | unterwegs „unbekannt“ |
 | Fahrten nicht synchronisiert | Hinweis, die NIU-App zu öffnen |
+| Fahrten abrufen (Taster) | holt sofort neue Fahrten aus der NIU-Cloud und liest den Roller neu; nur mit NIU-Konto |
 | Standort (`device_tracker`) | in Reichweite = zuhause, sonst Position eines Handy-Trackers |
 
 | Fahrtenbuch | Anzahl Fahrten; die neuesten 50 im Attribut `fahrten` |
